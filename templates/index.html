@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <title>City Social Matcher</title>
+        <link rel="stylesheet" type="text/css" href="style.css">
+    </head>
+    <body>
+        <div class="content">
+            <div class="dataInputForm">
+                <form name="f_dataInput" action="/f_dataInput" method="post">
+                    <!-- api key input -->
+                    <label for="apikey">Jotform API Key:</label>
+                    <input type="text" id="apikey" name="apikey">
+                    <br>
+                    <br>
+
+                    <!-- radio button for input type -->
+                    <!-- <input type="radio" id="file" name="inputType" onclick="document.getElementById('submissionId').disabled = true; document.getElementById('fileUpload').disabled = false;">
+                    <label for="file">File Upload</label>
+
+                    <input type="radio" id="submissionids" name="inputType" onclick="document.getElementById('fileUpload').disabled = true; document.getElementById('submissionId').disabled = false;">
+                    <label for="submissionids">Submission ID</label>
+                    <br>
+                    <br> -->
+    
+                    <!-- form id or submission id input -->
+                    <!-- <label for="submissionId">Form/SubmissionIDs</label>
+                    <input type="text" id="submissionId" name="submissionId">
+                    <br>
+                    <br> -->
+
+                    <!-- file upload for csv of submission data -->
+                    <input type="file" id="myFile" name="submissionDataFile">
+    
+                    <input type="submit" value="Submit">
+                    <p>You can also submit a list of Submission IDs that are comma separated with no spaces.</p>
+                </form>
+            </div>
+            <div class="submissionsOutput">
+                {% if key == "BadKey" %}
+                    <p>Invalid API Key</p>
+                {% elif key == "BadForm" %}
+                    <p>Invalid Form ID</p>
+                {% endif %}
+            </div>
+            <div class="matchesOutput">
+
+            </div>
+        </div>
+    </body>
+</html>

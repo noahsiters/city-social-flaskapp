@@ -3,8 +3,6 @@ from flask import render_template
 from flask import request
 from flask import redirect
 
-import os
-import dotenv # type: ignore
 import json
 import submission
 import stablemarriages
@@ -25,10 +23,11 @@ def dataInput():
     # get form data
     key = request.form["apikey"]
     formId = request.form["submissionId"]
+    requestedDate = request.form["eventDate"]
+    preferenceListCheckbox = request.form.get("preferenceListCheckbox")
 
-    # TODO for testing purposes
-    # key = 'cf7568f8711ff6cdaa95d591bf0c3108'
-    # formId = '241778563027160'
+    if requestedDate != "":
+        requestedDate = reformatDate(request.form["eventDate"]) # reformat date from YYYY-MM-DD to MM/DD/YY
 
     # check for valid user
     try:
@@ -41,28 +40,22 @@ def dataInput():
     if "," in formId:
         submissionObjs = gatherSubmissionsFromList(key, formId)
     else:
-        submissionObjs = gatherSubmissionsFromForm(key, formId)
+        if requestedDate == "":
+            return redirect("/NoDateGiven")
+        submissionObjs = gatherSubmissionsFromForm(key, formId, requestedDate)
 
     if submissionObjs == False:
         return redirect("/BadForm")
-        
-    # returnString = "<a href='/'>back</a>\n<ul>\n"
-    # try:
-    #     for sub in formattedSubmissions:
-    #         returnString += "<li>" + sub + "</li>\n"
-    # except:
-    #     return redirect("/BadForm")
-    # returnString += "</ul>"
-
-    # return returnString
 
     # return displaySubmissions(submissionObjs)
-    return displayMatches(submissionObjs)
-    # return "<p>got data ok</p>"
+    if preferenceListCheckbox == "Yes":
+        return displayMatchesWithPreferences(submissionObjs)
+    else:
+        return displayMatches(submissionObjs)
 
 # helper methods
 # this method is for getting the submission responses from jotform via a form ID
-def gatherSubmissionsFromForm(key, formId):
+def gatherSubmissionsFromForm(key, formId, requestedDate):
     jotform = JotformAPIClient(key)
 
     try:
@@ -70,7 +63,7 @@ def gatherSubmissionsFromForm(key, formId):
     except:
         return False
 
-    return parseDataFromSubmissions(submissions)
+    return parseDataFromSubmissions(submissions, requestedDate)
 
 # this method is for getting the submission responses from jotform via a comma separated list of submission IDs
 def gatherSubmissionsFromList(key, idList):
@@ -86,11 +79,11 @@ def gatherSubmissionsFromList(key, idList):
             return False
         submissions.append(sub)
 
-    return parseDataFromSubmissions(submissions)
+    return parseDataFromSubmissions(submissions, 0)
 
 # this method takes a list of submission responses (list of dictionaries) and parses the pertinent data out of them
 # then creates usable submission objects and returns a list of those
-def parseDataFromSubmissions(listOfSubmissions):
+def parseDataFromSubmissions(listOfSubmissions, requestedDate):
     parsedSubmissions = []
 
     for sub in listOfSubmissions:
@@ -148,8 +141,12 @@ def parseDataFromSubmissions(listOfSubmissions):
                     except:
                         gender = "NULL"
 
-            # create a submission object with all the gathered data connected to it
-            parsedSubmissions.append(submission.Submission(subId, firstName, lastName, email, age, gender, formAnswersDict, creationDate, eventDate))
+            # check if eventDate is equal to the requested date
+            if requestedDate == eventDate:
+                # create a submission object with all the gathered data connected to it
+                parsedSubmissions.append(submission.Submission(subId, firstName, lastName, email, age, gender, formAnswersDict, creationDate, eventDate))
+            elif requestedDate == 0:
+                parsedSubmissions.append(submission.Submission(subId, firstName, lastName, email, age, gender, formAnswersDict, creationDate, eventDate))
 
     return parsedSubmissions
 
@@ -225,3 +222,14 @@ def displayMatches(formattedSubmissions):
     returnStr += "</body></html>"
 
     return returnStr
+
+# reformat date from YYYY-MM-DD to MM/DD/YY
+def reformatDate(date):
+    dateArr = date.split('-')
+
+    # shorten year to two digits
+    if len(dateArr[0]) == 4:
+        dateArr[0] = dateArr[0][-2:]
+
+    newDateStr = dateArr[1] + "/" + dateArr[2] + "/" + dateArr[0]
+    return newDateStr

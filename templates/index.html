@@ -14,10 +14,30 @@
                     <input type="text" id="apikey" name="apikey">
                     <br>
                     <br>
-    
+
+                    <!-- input type selection -->
+                    <div class="radios">
+                        <label class="radio">
+                          <input type="radio" name="inputType" id="file_upload" value="file_upload" onclick="fileInputSelected()"/>
+                          Input Via File
+                        </label>
+                        <label class="radio">
+                          <input type="radio" name="inputType" id="id_input" value="id_input" onclick="submissionIdInputSelected()"/>
+                          Input Via Form ID/Submission IDs
+                        </label>
+                    </div>
+                    <br>
+                    <br>
+
                     <!-- form id or submission id input -->
                     <label for="submissionId">Form/SubmissionIDs</label>
-                    <input type="text" id="submissionId" name="submissionId">
+                    <input type="text" id="submissionId" name="submissionId" disabled>
+                    <br>
+                    <br>
+
+                    <!-- file input -->
+                    <label for="myfile">Select a file:</label>
+                    <input type="file" id="myfile" name="file" disabled>
                     <br>
                     <br>
 
@@ -33,12 +53,39 @@
                     <br>
                     <br>
 
-                    <!-- file input -->
-                    <label for="myfile">Select a file:</label>
-                    <input type="file" id="myfile" name="file">
-    
                     <input type="submit" value="Submit">
                     <p>You can also submit a list of Submission IDs that are comma separated with no spaces.</p>
+                    <p>NOTE: If no date is selected, all submissions will be processed.</p>
+
+                    <script>
+                        window.onload = function() {
+                            radioFileInput = document.getElementById("file_upload")
+                            radioIdInput = document.getElementById("id_input")
+
+                            if (radioFileInput.checked) {
+                                fileInputSelected()
+                            }
+                            else if (radioIdInput.checked) {
+                                submissionIdInputSelected()
+                            }
+                        }
+
+                        function fileInputSelected() {
+                            submissionIdInput = document.getElementById("submissionId")
+                            fileInput = document.getElementById("myfile")
+
+                            submissionIdInput.disabled = true
+                            fileInput.disabled = false
+                        }
+
+                        function submissionIdInputSelected() {
+                            submissionIdInput = document.getElementById("submissionId")
+                            fileInput = document.getElementById("myfile")
+
+                            submissionIdInput.disabled = false
+                            fileInput.disabled = true
+                        }
+                    </script>
                 </form>
             </div>
             <div class="submissionsOutput">
@@ -50,6 +97,8 @@
                     <p>No Date Given</p>
                 {% elif key == "NoFile" %}
                     <p>No File</p>
+                {% elif key == "NoInputType" %}
+                    <p>No Input Type Selected</p>
                 {% endif %}
             </div>
             <div class="matchesOutput">

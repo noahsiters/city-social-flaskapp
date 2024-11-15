@@ -4,13 +4,12 @@ from flask import request
 from flask import redirect
 
 from io import StringIO
-import pandas as pd
+from jotform import JotformAPIClient
 
+import pandas as pd
 import json
 import submission
 import stablemarriages
-
-from jotform import JotformAPIClient
 
 app = Flask(__name__)
 
@@ -18,163 +17,187 @@ app = Flask(__name__)
 @app.route("/")
 @app.route("/<key>")
 def index(key=None):
+    # when going to index page, render the index.html template
     return render_template("index.html", key=key)
 
-# form action
+# form action - this method is called when the form is submitted
 @app.route("/f_dataInput", methods=["POST"])
 def dataInput():
-    # get form data
-    key = request.form["apikey"]
-    formId = request.form["submissionId"]
-    requestedDate = request.form["eventDate"]
-    preferenceListCheckbox = request.form.get("preferenceListCheckbox")
-
-    if requestedDate != "":
-        requestedDate = reformatDate(request.form["eventDate"]) # reformat date from YYYY-MM-DD to MM/DD/YY
-
-    # check for valid user
+    # check if api key is valid
     try:
-        jotform = JotformAPIClient(key)
+        jotform = JotformAPIClient(request.form["apikey"])
         user = jotform.get_user()
+        key  = request.form["apikey"]
     except:
         return redirect("/BadKey")
+        
+    # get form data
+    requestedDate = request.form['eventDate']
+    includePrefList = request.form.get("preferenceListCheckbox")
+
+    # get input type
+    try:
+        inputType = request.form['inputType']
+    except:
+        return redirect("/NoInputType")
     
-    # check if file was submitted
-    rawFile = request.files['file'] # rawFile will contain the raw csv data
-
-    if request.files['file'].filename != '':
-        print("GOT FILE")
-        submissionObjs = gatherSubmissionsFromFile(key, rawFile)
+    # check if we are filtering by event date
+    if requestedDate != '':
+        requestedDate = reformatDate(requestedDate) # reformats date to MM/DD/YY
     else:
-        print("NO FILE")
-        # check if id was a SINGLE FORM id or a LIST of submission ids
-        if "," in formId:
-            submissionObjs = gatherSubmissionsFromList(key, formId)
-        else:
-            if requestedDate == "":
-                return redirect("/NoDateGiven")
-            submissionObjs = gatherSubmissionsFromForm(key, formId, requestedDate)
+        requestedDate = False
+    
+    # check if we are processing via file or form id/submission ids and get data accordingly
+    data = ''
+    if inputType == 'file_upload':
+        try:
+            rawFile = request.files['file']
+            df = pd.read_csv(StringIO(rawFile.read().decode('utf-8')))
+        except:
+            return redirect("/NoFile")
+        
+        data = df
+    elif inputType == 'id_input':
+        try:
+            id = request.form['submissionId']
+        except:
+            return redirect("/BadForm")
+        
+        data = id
 
+        if id == '':
+            return redirect("/BadForm")
+        
+        if ',' in id:
+            inputType += '_submissions'
+        else:
+            inputType += '_form'
+
+    submissionObjs = gatherSubmissionsFromJotform(key, inputType, data, requestedDate)
+
+    # output
     if submissionObjs == False:
         return redirect("/BadForm")
-
-    # return displaySubmissions(submissionObjs)
-    if preferenceListCheckbox == "Yes":
+    
+    if includePrefList == "Yes":
         return displayMatchesWithPreferences(submissionObjs)
     else:
         return displayMatches(submissionObjs)
 
 # helper methods
-# this method is for getting the submission responses from jotform via a form ID
-def gatherSubmissionsFromForm(key, formId, requestedDate):
+def gatherSubmissionsFromJotform(key, inputType, data, requestedDate):
     jotform = JotformAPIClient(key)
+    submission_id_list = []
+    submissions = []
 
-    try:
-        submissions = jotform.get_form_submissions(formId)
-    except:
-        return False
+    if inputType == 'file_upload' or inputType == 'id_input_submissions':
+        if inputType == 'file_upload':
+            submission_id_list = data['Submission ID'].tolist()
+        elif inputType == 'id_input_submissions':
+            submission_id_list = data.split(',')
+
+        for id in submission_id_list:
+            try:
+                sub = jotform.get_submission(str(id))
+            except:
+                return False
+            
+            submissions.append(sub)
+
+    elif inputType == 'id_input_form':
+        submissions = jotform.get_form_submissions(data)
 
     return parseDataFromSubmissions(submissions, requestedDate)
 
-# this method is for getting the submission responses from jotform via a comma separated list of submission IDs
-def gatherSubmissionsFromList(key, idList):
-    jotform = JotformAPIClient(key)
-    submissionIds = idList.split(",")
-    submissions = []
-
-
-    for id in submissionIds:
-        try:
-            sub = jotform.get_submission(id)
-        except:
-            return False
-        submissions.append(sub)
-
-    return parseDataFromSubmissions(submissions, 0)
-
-def gatherSubmissionsFromFile(key, rawFile):
-    jotform = JotformAPIClient(key)
-    df = pd.read_csv(StringIO(rawFile.read().decode('utf-8')))
-    submission_id_list = df['Submission ID'].tolist()
-    submissions = []
-
-    for id in submission_id_list:
-        try:
-            sub = jotform.get_submission(str(id))
-        except:
-            return False
-        submissions.append(sub)
-
-    return parseDataFromSubmissions(submissions, 0)
-
 # this method takes a list of submission responses (list of dictionaries) and parses the pertinent data out of them
 # then creates usable submission objects and returns a list of those
-def parseDataFromSubmissions(listOfSubmissions, requestedDate):
-    parsedSubmissions = []
+def parseDataFromSubmissions(submissions, requestedDate):
+    submissionObjs = []
 
-    for sub in listOfSubmissions:
+    for sub in submissions:
         json_object = json.dumps(sub, indent=2)
         sub_json = json.loads(json_object)
 
-        # empty vars to store submission info
-        subId = sub_json["id"]
-        creationDate = sub_json["created_at"]
+        subId = sub_json['id']
+        creationDate = sub_json['created_at']
+        eventDate = ''
 
-        firstName = ""
-        lastName = ""
-        email = ""
-        age = ""
-        gender = ""
-        eventDate = ""
-        formAnswers = []
-        formAnswersDict = {}
+        # confirm that the submission is ACTIVE and not DELETED
+        if sub_json['status'] == 'ACTIVE':
+            # get the event date of the submission
+            for answer in sub_json['answers']:
+                if sub_json['answers'][answer]['name'] == 'eventDate':
+                    eventDate = sub_json['answers'][answer]['answer']
+            
+            # check if we are filtering for event date
+            if requestedDate != False:
+                # only get submissions with matching event date
+                if eventDate == requestedDate:
+                    submissionData = parseSubmissionAnswers(sub_json['answers'])
+                    submissionObjs.append(submission.Submission(subId, submissionData['firstName'], submissionData['lastName'], submissionData['email'], submissionData['age'], submissionData['gender'], submissionData['formAnswersDict'], creationDate, eventDate))
 
-        if sub_json["status"] == "ACTIVE":
-            for answer in sub_json["answers"]:
-                # checks if answer is of type "control_matrix" (table that contains answers)
-                if sub_json["answers"][answer]["type"] == "control_matrix":
-                    for key in sub_json["answers"][answer]["answer"]:
-                        resp = sub_json["answers"][answer]["answer"][key]
-                        if resp == "Strongly Disagree":
-                            formAnswers.append(0)
-                            formAnswersDict[key] =  0
-                        elif resp == "Disagree":
-                            formAnswers.append(1)
-                            formAnswersDict[key] =  1
-                        elif resp == "Neither":
-                            formAnswers.append(2)
-                            formAnswersDict[key] =  2
-                        elif resp == "Agree":
-                            formAnswers.append(3)
-                            formAnswersDict[key] =  3
-                        elif resp == "Strongly Agree":
-                            formAnswers.append(4)
-                            formAnswersDict[key] =  4
-                # check if answer is personal info
-                elif sub_json["answers"][answer]["name"] == "firstName":
-                    firstName = sub_json["answers"][answer]["answer"]
-                elif sub_json["answers"][answer]["name"] == "lastName":
-                    lastName = sub_json["answers"][answer]["answer"]
-                elif sub_json["answers"][answer]["name"] == "email":
-                    email = sub_json["answers"][answer]["answer"]
-                elif sub_json["answers"][answer]["name"] == "age":
-                    age = sub_json["answers"][answer]["answer"]
-                elif sub_json["answers"][answer]["name"] == "eventDate":
-                    eventDate = sub_json["answers"][answer]["answer"]
-                elif sub_json["answers"][answer]["name"] == "gender":
-                    try:
-                        gender = sub_json["answers"][answer]["answer"]
-                    except:
-                        gender = "NULL"
+            else:
+                # get all submissions
+                submissionData = parseSubmissionAnswers(sub_json['answers'])    
+                submissionObjs.append(submission.Submission(subId, submissionData['firstName'], submissionData['lastName'], submissionData['email'], submissionData['age'], submissionData['gender'], submissionData['formAnswersDict'], creationDate, eventDate))
 
-            # check if eventDate is equal to the requested date
-            if requestedDate == eventDate:
-                # create a submission object with all the gathered data connected to it
-                parsedSubmissions.append(submission.Submission(subId, firstName, lastName, email, age, gender, formAnswersDict, creationDate, eventDate))
-            elif requestedDate == 0:
-                parsedSubmissions.append(submission.Submission(subId, firstName, lastName, email, age, gender, formAnswersDict, creationDate, eventDate))
+    return submissionObjs
 
-    return parsedSubmissions
+# uses switch case to go through each answer in json and store it in a dictionary
+def parseSubmissionAnswers(subAnswers):
+    submissionData = {
+        'firstName': '',
+        'lastName': '',
+        'email': '',
+        'age': '',
+        'gender': '',
+        'formAnswers': '',
+        'formAnswersDict': ''
+    }
+
+    formAnswers = []
+    formAnswersDict = {}
+
+    for answer in subAnswers:
+        # checks if answer is of type "control_matrix" (table that contains answers)
+        if subAnswers[answer]['type'] == 'control_matrix':
+            for key in subAnswers[answer]['answer']:
+                resp = subAnswers[answer]['answer'][key]
+                match resp:
+                    case 'Strongly Disagree':
+                        formAnswers.append(0)
+                        formAnswersDict[key] = 0
+                    case 'Disagree':
+                        formAnswers.append(1)
+                        formAnswersDict[key] = 1
+                    case 'Neither':
+                        formAnswers.append(2)
+                        formAnswersDict[key] = 2
+                    case 'Agree':
+                        formAnswers.append(3)
+                        formAnswersDict[key] = 3
+                    case 'Strongly Agree':
+                        formAnswers.append(4)
+                        formAnswersDict[key] = 4
+        # check if answer is personal info
+        match subAnswers[answer]['name']:
+            case 'firstName':
+                submissionData['firstName'] = subAnswers[answer]['answer']
+            case 'lastName':
+                submissionData['lastName'] = subAnswers[answer]['answer']
+            case 'email':
+                submissionData['email'] = subAnswers[answer]['answer']
+            case 'age':
+                submissionData['age'] = subAnswers[answer]['answer']
+            case 'gender':
+                try:
+                    submissionData['gender'] = subAnswers[answer]['answer']
+                except:
+                    submissionData['gender'] = False
+    
+    submissionData['formAnswers'] = formAnswers
+    submissionData['formAnswersDict'] = formAnswersDict
+    return submissionData
 
 # this method takes a list of submission objects and lists them by gender
 def displaySubmissions(formattedSubmissions):
@@ -237,6 +260,7 @@ def displayMatches(formattedSubmissions):
     returnStr += "<h3>Matches</h3>\n<ol>"
 
     iterator = 1
+    print(str(matches))
     for male in matches.keys():
         maleSubmissionLink = "https://www.jotform.com/submission/" + male.getId()
         femaleSubmissionLink = "https://www.jotform.com/submission/" + matches[male].getId()

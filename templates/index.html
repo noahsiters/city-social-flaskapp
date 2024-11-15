@@ -8,7 +8,7 @@
     <body>
         <div class="content">
             <div class="dataInputForm">
-                <form name="f_dataInput" action="/f_dataInput" method="post">
+                <form name="f_dataInput" action="/f_dataInput" method="post" enctype="multipart/form-data">
                     <!-- api key input -->
                     <label for="apikey">Jotform API Key:</label>
                     <input type="text" id="apikey" name="apikey">
@@ -32,6 +32,10 @@
                     <label for="preferenceListCheckbox">Include Preference Lists?</label><br>
                     <br>
                     <br>
+
+                    <!-- file input -->
+                    <label for="myfile">Select a file:</label>
+                    <input type="file" id="myfile" name="file">
     
                     <input type="submit" value="Submit">
                     <p>You can also submit a list of Submission IDs that are comma separated with no spaces.</p>
@@ -44,6 +48,8 @@
                     <p>Invalid Form ID</p>
                 {% elif key == "NoDateGiven" %}
                     <p>No Date Given</p>
+                {% elif key == "NoFile" %}
+                    <p>No File</p>
                 {% endif %}
             </div>
             <div class="matchesOutput">

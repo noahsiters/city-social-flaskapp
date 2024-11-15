@@ -3,6 +3,9 @@ from flask import render_template
 from flask import request
 from flask import redirect
 
+from io import StringIO
+import pandas as pd
+
 import json
 import submission
 import stablemarriages
@@ -36,13 +39,21 @@ def dataInput():
     except:
         return redirect("/BadKey")
     
-    # check if id was a SINGLE FORM id or a LIST of submission ids
-    if "," in formId:
-        submissionObjs = gatherSubmissionsFromList(key, formId)
+    # check if file was submitted
+    rawFile = request.files['file'] # rawFile will contain the raw csv data
+
+    if request.files['file'].filename != '':
+        print("GOT FILE")
+        submissionObjs = gatherSubmissionsFromFile(key, rawFile)
     else:
-        if requestedDate == "":
-            return redirect("/NoDateGiven")
-        submissionObjs = gatherSubmissionsFromForm(key, formId, requestedDate)
+        print("NO FILE")
+        # check if id was a SINGLE FORM id or a LIST of submission ids
+        if "," in formId:
+            submissionObjs = gatherSubmissionsFromList(key, formId)
+        else:
+            if requestedDate == "":
+                return redirect("/NoDateGiven")
+            submissionObjs = gatherSubmissionsFromForm(key, formId, requestedDate)
 
     if submissionObjs == False:
         return redirect("/BadForm")
@@ -75,6 +86,21 @@ def gatherSubmissionsFromList(key, idList):
     for id in submissionIds:
         try:
             sub = jotform.get_submission(id)
+        except:
+            return False
+        submissions.append(sub)
+
+    return parseDataFromSubmissions(submissions, 0)
+
+def gatherSubmissionsFromFile(key, rawFile):
+    jotform = JotformAPIClient(key)
+    df = pd.read_csv(StringIO(rawFile.read().decode('utf-8')))
+    submission_id_list = df['Submission ID'].tolist()
+    submissions = []
+
+    for id in submission_id_list:
+        try:
+            sub = jotform.get_submission(str(id))
         except:
             return False
         submissions.append(sub)

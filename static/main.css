@@ -1,0 +1,40 @@
+* {
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+html {
+    /* background-color: #F5F4EF; */
+    color: #2F3E46
+}
+
+body {
+    /* background-color: #F5F4EF; */
+    padding: 15px;
+}
+
+form {
+    padding: 10px;
+    background-color: #CAD2C5;
+    margin: 0 auto;
+    width: 65%;
+    border-radius: 15px;
+}
+
+.form-input {
+    /* padding: 2px; */
+    width: 90%;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.form-file-input {
+    padding-top: 10px;
+}
+
+.preferenceList-input {
+    padding-top: 10px;
+}
+
+.form-button {
+    text-align: center;
+}

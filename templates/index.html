@@ -51,7 +51,8 @@
             <div class="form-input form-file-input">
                 <div class="mb-3">
                     <label for="formFile" class="form-label">Submission Data File</label>
-                    <input class="form-control" type="file" id="myfile" name="file" disabled>
+                    <input class="form-control" type="file" id="myfile" name="file" aria-describedby="forminputHelp" disabled>
+                    <div id="forminputHelp" class="form-text">You can get this from Jotform by going to More > Data > Submissions, and exporting the data as a .CSV file.</div>
                 </div>
             </div>
 
@@ -70,9 +71,6 @@
                 <div class="form-input-date">
                     <input type="date" id="eventDate" name="eventDate">
                 </div>
-                <!-- <div class="input-group date" data-provide="datepicker">
-                    <input type="date" class="datepicker" id="eventDate" name="eventDate">
-                </div> -->
                 <div id="eventDateHelp" class="form-text">If no date is given, all submissions will be processed.</div>
             </div>
 

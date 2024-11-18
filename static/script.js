@@ -3,8 +3,23 @@ document.addEventListener("DOMContentLoaded", function(event) {
     // document elements
     const radioFileInput = document.getElementById("file_upload");
     const radioIdInput = document.getElementById("id_input");
-    const submissionIdInput = document.getElementById("submissionId")
-    const fileInput = document.getElementById("myfile")
+    const submissionIdInput = document.getElementById("submissionId");
+    const fileInput = document.getElementById("myfile");
+
+    // select form
+    var forms = document.querySelectorAll('.needs-validation')
+
+    Array.prototype.slice.call(forms)
+    .forEach(function (form) {
+      form.addEventListener('submit', function (event) {
+        if (!form.checkValidity()) {
+          event.preventDefault()
+          event.stopPropagation()
+        }
+
+        form.classList.add('was-validated')
+      }, false)
+    });
 
     // on load
     window.onload = function() {
@@ -26,13 +41,23 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
     // functions
     function fileInputSelected() {
+        // disable accordingly
         submissionIdInput.disabled = true;
         fileInput.disabled = false;
+
+        // require accordingly
+        submissionIdInput.required = false;
+        fileInput.required = true;
     }
 
     function submissionIdInputSelected() {
+        // disable accordingly
         submissionIdInput.disabled = false;
         fileInput.disabled = true;
+
+        // require accordingly
+        submissionIdInput.required = true;
+        fileInput.required = false;
     }
   });
 

@@ -17,14 +17,17 @@
     
     </head>
     <body>
-        <form name="f_dataInput" action="/f_dataInput" method="post" enctype="multipart/form-data">
+        <form name="f_dataInput" class="needs-validation" action="/f_dataInput" method="post" enctype="multipart/form-data" novalidate>
 
             <!-- api key input -->
             <div class="form-input">
                 <div class="mb-3">
                     <label for="apikey" class="form-label">Jotform API Key</label>
-                    <input type="text" class="form-control" id="apikey" name="apikey" aria-describedby="apikeyhelp">
+                    <input type="text" class="form-control" id="apikey" name="apikey" aria-describedby="apikeyhelp" required>
                     <div id="apikeyHelp" class="form-text">Allows us to connect to your Jotform account.</div>
+                    <div class="invalid-feedback">
+                        Please enter an API Key.
+                    </div>
                 </div>
             </div>
 
@@ -54,6 +57,9 @@
                     <input class="form-control" type="file" id="myfile" name="file" aria-describedby="forminputHelp" disabled>
                     <div id="forminputHelp" class="form-text">You can get this from Jotform by going to More > Data > Submissions, and exporting the data as a .CSV file.</div>
                 </div>
+                <div class="invalid-feedback">
+                    Please submit a file.
+                </div>
             </div>
 
             <!-- form id or submission id input -->
@@ -62,6 +68,9 @@
                     <label for="submissionId" class="form-label">Form/Submission IDs</label>
                     <input type="text" class="form-control" id="submissionId" name="submissionId" aria-describedby="submissionIdHelp" disabled>
                     <div id="submissionIdHelp" class="form-text">You can enter either a Form ID, or a list of Submission IDs that are comma separated with no spaces.</div>
+                </div>
+                <div class="invalid-feedback">
+                    Please enter an ID.
                 </div>
             </div>
 

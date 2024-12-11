@@ -7,17 +7,33 @@ document.addEventListener("DOMContentLoaded", function(event) {
     const fileInput = document.getElementById("myfile");
 
     // select form
-    var forms = document.querySelectorAll('.needs-validation')
+    var forms = document.querySelectorAll('.needs-validation');
 
     Array.prototype.slice.call(forms)
     .forEach(function (form) {
       form.addEventListener('submit', function (event) {
         if (!form.checkValidity()) {
-          event.preventDefault()
-          event.stopPropagation()
+          event.preventDefault();
+          event.stopPropagation();
         }
 
-        form.classList.add('was-validated')
+        // check file type
+        if (submissionIdInput.disabled == true && fileInput.disabled == false) {
+            fileName = fileInput.value;
+            fileType = fileName.split('.').pop();
+
+            // if filetype is wrong
+            if (fileType.toLowerCase() != 'csv' && fileName!= '') {
+                // display errors to user
+                alert(("Please only submit '.csv' filetypes."));
+
+                // stop form submission
+                event.preventDefault();
+                event.stopPropagation();
+            }
+        }
+
+        form.classList.add('was-validated');
       }, false)
     });
 

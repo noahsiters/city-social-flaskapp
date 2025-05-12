@@ -11,6 +11,10 @@ import json
 import submission
 import stablemarriages
 
+#### for local testing ####
+# import ssl
+# ssl._create_default_https_context = ssl._create_stdlib_context
+
 app = Flask(__name__)
 
 # index page route
@@ -25,10 +29,11 @@ def index(key=None):
 def dataInput():
     # check if api key is valid
     try:
-        jotform = JotformAPIClient(request.form["apikey"])
+        key = request.form["apikey"]
+        jotform = JotformAPIClient(key)
         user = jotform.get_user()
-        key  = request.form["apikey"]
-    except:
+    except Exception as e:
+        print("Exception Occured: " + str(e))
         return redirect("/BadKey")
         
     # get form data
@@ -78,11 +83,20 @@ def dataInput():
     # output
     if submissionObjs == False:
         return redirect("/BadForm")
-    
+
+    matches = stablemarriages.getStableMarriages(submissionObjs)
+    matchesAsListItems = []
+
     if includePrefList == "Yes":
         return displayMatchesWithPreferences(submissionObjs)
     else:
-        return displayMatches(submissionObjs)
+        for male in matches.keys():
+            # maleSubmissionLink = "https://www.jotform.com/submission/" + male.getId()
+            # femaleSubmissionLink = "https://www.jotform.com/submission/" + matches[male].getId()
+            item = "{} ({}) + {} ({})".format(male.getFullName(), male.getEmail(), matches[male].getFullName(), matches[male].getEmail())
+            matchesAsListItems.append(item)
+
+    return render_template("matches.html", matches=matchesAsListItems)    
 
 # helper methods
 def gatherSubmissionsFromJotform(key, inputType, data, requestedDate):
@@ -99,7 +113,8 @@ def gatherSubmissionsFromJotform(key, inputType, data, requestedDate):
         for id in submission_id_list:
             try:
                 sub = jotform.get_submission(str(id))
-            except:
+            except Exception as e:
+                print("Exception occured: " + str(e))
                 return False
             
             submissions.append(sub)

@@ -62,12 +62,20 @@ input[type=file]:disabled:hover {
 }
 
 @media (max-width: 430px){
-    body {
-        padding: 10px;
-    }
+    /* body {
+        padding: 5px;
+    } */
 
     form {
         padding: 5px;
         width: 90%;
     }
+}
+
+.output {
+    padding: 10px;
+    background-color: #fafafa;
+    margin: 0 auto;
+    width: 65%;
+    border-radius: 15px;
 }
